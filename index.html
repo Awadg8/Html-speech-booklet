@@ -102331,7 +102331,13 @@
       });
     </script>
 
+    
     <script>
+const processedElements = new WeakSet();
+const processedGroups = new WeakSet();
+
+// Your phrases array - add your specific phrases here
+
       const phrases = [
         "Vascular Intervention",
         "Coronary",
@@ -105188,208 +105194,358 @@
         "Weight Bearing",
         "Wound Closure",
       ];
+// API call function with error handling
+async function makeTextToSpeechCall(text) {
+  try {
+    const response = await fetch("https://api.sarvam.ai/text-to-speech", {
+      method: "POST",
+      headers: {
+        "api-subscription-key": "sk_ydk1b5db_Ut4Gw4gQW8b4ZN4chcsMvNQT",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: text,
+        target_language_code: "en-IN",
+        speaker: "anushka",
+        pitch: 0,
+        loudness: 1,
+        pace: 0.9,
+        speech_sample_rate: "24000",
+        model: "bulbul:v2",
+      }),
+    });
+    const body = await response.json();
+    if (body.audios && body.audios.length > 0) {
+      const audio = new Audio(`data:audio/mp3;base64,${body.audios[0]}`);
+      audio.play();
+    } else {
+      console.error("No audio received for:", text);
+      alert("No audio received.");
+    }
+  } catch (err) {
+    console.error("TTS Error for", text, ":", err);
+    alert("Audio fetch failed.");
+  }
+}
 
-      // Track processed elements to avoid duplicates
-      const processedElements = new WeakSet();
-      // API call function with error handling
-      async function makeTextToSpeechCall(text) {
-        try {
-          const response = await fetch("https://api.sarvam.ai/text-to-speech", {
-            method: "POST",
-            headers: {
-              "api-subscription-key": "sk_ydk1b5db_Ut4Gw4gQW8b4ZN4chcsMvNQT",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              text: text,
-              target_language_code: "en-IN",
-              speaker: "anushka",
-              pitch: 0,
-              loudness: 1,
-              pace: 0.9,
-              speech_sample_rate: "24000",
-              model: "bulbul:v2",
-            }),
-          });
-          const body = await response.json();
-          if (body.audios && body.audios.length > 0) {
-            const audio = new Audio(`data:audio/mp3;base64,${body.audios[0]}`);
-            audio.play();
-          } else {
-            console.error("No audio received for:", text);
-            alert("No audio received.");
-          }
-        } catch (err) {
-          console.error("TTS Error for", text, ":", err);
-          alert("Audio fetch failed.");
-        }
-      }
-      // Enhanced function to inject speak buttons with container-specific processing
-      function injectSpeakButtonsForBoldTerms(container = document) {
-        // Find all bold elements within the specific container
-        const boldElements = Array.from(
-          container.querySelectorAll("b, strong")
-        );
-        let processedCount = 0;
-        boldElements.forEach((el) => {
-          // Skip if already processed
-          if (processedElements.has(el)) {
-            return;
-          }
-          const text = el.textContent.trim();
-          if (phrases.includes(text)) {
-            // Mark as processed
-            processedElements.add(el);
+// Function to clean text
+function cleanText(text) {
+  return text
+    .replace(/&#160;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-            const wrapper = document.createElement("span");
-            wrapper.style.position = "relative";
-            wrapper.style.display = "inline-block";
-            wrapper.classList.add("tts-wrapper"); // Add class for identification
-            const button = document.createElement("button");
-            button.innerHTML = `
+// Function to create TTS button with inline positioning
+function createTTSButton(text) {
+  const button = document.createElement("button");
+  button.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
           stroke-width="1.5" stroke="currentColor" width="12" height="12">
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
         </svg>
       `;
-            button.setAttribute("title", "Speak");
-            button.dataset.text = text;
-            button.classList.add("tts-button"); // Add class for identification
+  
+  button.setAttribute("title", `Speak: ${text}`);
+  button.dataset.text = text;
+  button.classList.add("tts-button");
+  
+  // Inline button styling - positioned right next to text
+  Object.assign(button.style, {
+    display: "inline-block",
+    marginLeft: "0px",
+    marginRight: "2px",
+    background: "transparent",
+    // color: "#333",
+    border: "0",
+    borderRadius: "3px",
+    width: "15px",
+    height: "15px",
+    fontSize: "8px",
+    cursor: "pointer",
+    zIndex: "1000",
+    padding: "0",
+    lineHeight: "12px",
+    textAlign: "center",
+    verticalAlign: "middle",
+    // boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+    transition: "all 0.2s ease"
+  });
+ 
+  // Click handler
+  button.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Visual feedback
+    button.disabled = true;
+    button.style.opacity = "1";
+    button.innerHTML = "⏳";
+    
+    await makeTextToSpeechCall(text);
+    
+    // Reset button
+    button.disabled = false;
+    button.style.opacity = "1";
+    button.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+          stroke-width="1.5" stroke="currentColor" width="12" height="12">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+        </svg>
+      `;
 
-            Object.assign(button.style, {
-              position: "absolute",
-              top: "-4px",
-              right: "-10px",
-              background: "transparent",
-              color: "#000",
-              border: "none",
-              borderRadius: "50%",
-              width: "15px",
-              height: "15px",
-              fontSize: "12px",
-              cursor: "pointer",
-              zIndex: "1000",
-            });
+  });
+  
+  return button;
+}
 
-            button.addEventListener("mouseleave", () => {
-              button.style.background = "transparent";
-            });
-            // Add click handler
-            button.addEventListener("click", async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
+// Function to add TTS button inline with text
+function addInlineTTSButton(element, text) {
+  if (processedElements.has(element)) return 0;
+  
+  processedElements.add(element);
+  
+  // Create the button
+  const button = createTTSButton(text);
+  
+  // Insert button right after the element
+  element.parentNode.insertBefore(button, element.nextSibling);
+  
+  return 1;
+}
 
-              // Disable button during API call
-              button.disabled = true;
-              button.style.opacity = "0.6";
-
-              await makeTextToSpeechCall(text);
-
-              // Re-enable button
-              button.disabled = false;
-              button.style.opacity = "1";
-            });
-            // Insert the wrapper and button
-            el.parentNode.insertBefore(wrapper, el);
-            wrapper.appendChild(el);
-            wrapper.appendChild(button);
-
-            processedCount++;
-          }
-        });
-        return processedCount;
+// Function to find and group split text elements
+function findSplitTextGroups(container = document) {
+  const groups = [];
+  const allBoldElements = Array.from(container.querySelectorAll("b, strong"));
+  
+  allBoldElements.forEach((element, index) => {
+    if (processedElements.has(element)) return;
+    
+    const rect = element.getBoundingClientRect();
+    const elementText = cleanText(element.textContent);
+    
+    // Look for nearby elements
+    const nearbyElements = [element];
+    const maxDistance = 30; // Smaller distance for better grouping
+    const maxVerticalDistance = 5;
+    
+    for (let i = index + 1; i < allBoldElements.length; i++) {
+      const otherElement = allBoldElements[i];
+      if (processedElements.has(otherElement)) continue;
+      
+      const otherRect = otherElement.getBoundingClientRect();
+      const horizontalDistance = Math.abs(otherRect.left - rect.right);
+      const verticalDistance = Math.abs(otherRect.top - rect.top);
+      
+      if (horizontalDistance < maxDistance && verticalDistance < maxVerticalDistance) {
+        nearbyElements.push(otherElement);
       }
-      // Function to process a specific page/div
-      function processPage(pageSelector) {
-        const pageElement = document.querySelector(pageSelector);
-
-        if (pageElement) {
-          const count = injectSpeakButtonsForBoldTerms(pageElement);
-          return count;
-        } else {
-          return 0;
-        }
-      }
-      // Function to process multiple pages at once
-      function processMultiplePages(pageSelectors) {
-        let totalProcessed = 0;
-        pageSelectors.forEach((selector) => {
-          totalProcessed += processPage(selector);
-        });
-        return totalProcessed;
-      }
-      // Observer for dynamically added content
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-            mutation.addedNodes.forEach((node) => {
-              if (node.nodeType === Node.ELEMENT_NODE) {
-                // Process the newly added node
-                injectSpeakButtonsForBoldTerms(node);
-              }
-            });
-          }
-        });
+    }
+    
+    if (nearbyElements.length > 1) {
+      nearbyElements.sort((a, b) => {
+        const aRect = a.getBoundingClientRect();
+        const bRect = b.getBoundingClientRect();
+        return aRect.left - bRect.left;
       });
-      // Function to start observing for dynamic content
-      function startObservingDynamicContent(targetElement = document.body) {
-        observer.observe(targetElement, {
-          childList: true,
-          subtree: true,
+      
+      const combinedText = nearbyElements
+        .map(el => cleanText(el.textContent))
+        .join('');
+      
+      if (phrases.includes(combinedText)) {
+        groups.push({
+          elements: nearbyElements,
+          text: combinedText
         });
       }
-      // Function to stop observing
-      function stopObservingDynamicContent() {
-        observer.disconnect();
-      }
-      // Main initialization function
-      function initializeTTS() {
-        // Process initial content
-        injectSpeakButtonsForBoldTerms();
+    }
+  });
+  
+  return groups;
+}
 
-        // Start observing for dynamic content
-        startObservingDynamicContent();
-      }
-      // Public API for manual control
-      window.MedicalTTS = {
-        // Process entire document
-        processAll: () => injectSpeakButtonsForBoldTerms(),
+// Function to add TTS button to a group of split elements
+function addTTSButtonToGroup(group) {
+  if (processedGroups.has(group)) return 0;
+  
+  const { elements, text } = group;
+  
+  // Mark all elements as processed
+  elements.forEach(el => processedElements.add(el));
+  processedGroups.add(group);
+  
+  // Find the last element in the group
+  const lastElement = elements[elements.length - 1];
+  
+  // Create and add button after the last element
+  const button = createTTSButton(text);
+  button.classList.add("tts-split-button");
+  
+  lastElement.parentNode.insertBefore(button, lastElement.nextSibling);
+  
+  return 1;
+}
 
-        // Process specific page/div
-        processPage: processPage,
+// Function to process split text elements
+function processSplitTextElements(container = document) {
+  const groups = findSplitTextGroups(container);
+  let processedCount = 0;
+  
+  groups.forEach(group => {
+    processedCount += addTTSButtonToGroup(group);
+  });
+  
+  return processedCount;
+}
 
-        // Process multiple pages
-        processPages: processMultiplePages,
+// Function to inject speak buttons for regular bold terms
+function injectSpeakButtonsForBoldTerms(container = document) {
+  const boldElements = Array.from(container.querySelectorAll("b, strong"));
+  let processedCount = 0;
+  
+  boldElements.forEach((el) => {
+    if (processedElements.has(el)) return;
+    
+    const text = cleanText(el.textContent);
+    if (phrases.includes(text)) {
+      processedCount += addInlineTTSButton(el, text);
+    }
+  });
+  
+  return processedCount;
+}
 
-        // Start/stop dynamic observation
-        startObserving: startObservingDynamicContent,
-        stopObserving: stopObservingDynamicContent,
+// Function to process a specific page/div
+function processPage(pageSelector) {
+  const pageElement = document.querySelector(pageSelector);
+  
+  if (pageElement) {
+    const regularCount = injectSpeakButtonsForBoldTerms(pageElement);
+    const splitCount = processSplitTextElements(pageElement);
+    return regularCount + splitCount;
+  }
+  return 0;
+}
 
-        // Re-initialize everything
-        reinitialize: initializeTTS,
+// Function to process multiple pages at once
+function processMultiplePages(pageSelectors) {
+  let totalProcessed = 0;
+  pageSelectors.forEach((selector) => {
+    totalProcessed += processPage(selector);
+  });
+  return totalProcessed;
+}
 
-        // Clear all TTS buttons and reset
-        clearAll: () => {
-          document.querySelectorAll(".tts-wrapper").forEach((wrapper) => {
-            const originalElement = wrapper.querySelector("b, strong");
-            if (originalElement) {
-              wrapper.parentNode.insertBefore(originalElement, wrapper);
-              wrapper.remove();
-            }
-          });
-          processedElements.clear();
-          // console.log("Cleared all TTS buttons");
-        },
-      };
-      // Initialize when DOM is ready
-      document.addEventListener("DOMContentLoaded", initializeTTS);
-      // Also initialize if script is loaded after DOM is ready
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initializeTTS);
-      } else {
-        initializeTTS();
-      }
-    </script>
+// Observer for dynamically added content
+const observer = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          setTimeout(() => {
+            injectSpeakButtonsForBoldTerms(node);
+            processSplitTextElements(node);
+          }, 50);
+        }
+      });
+    }
+  });
+});
+
+// Function to start observing for dynamic content
+function startObservingDynamicContent(targetElement = document.body) {
+  observer.observe(targetElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+// Function to stop observing
+function stopObservingDynamicContent() {
+  observer.disconnect();
+}
+
+// Main initialization function
+function initializeTTS() {
+  // Add global styles
+  const style = document.createElement('style');
+
+  document.head.appendChild(style);
+  
+  // Process initial content
+  setTimeout(() => {
+    const regular = injectSpeakButtonsForBoldTerms();
+    const split = processSplitTextElements();
+    console.log(`TTS initialized: ${regular} regular terms, ${split} split terms`);
+  }, 100);
+  
+  // Start observing for dynamic content
+  startObservingDynamicContent();
+}
+
+// Public API
+window.MedicalTTS = {
+  // Process entire document
+  processAll: () => {
+    const regular = injectSpeakButtonsForBoldTerms();
+    const split = processSplitTextElements();
+    console.log(`Processed ${regular} regular terms and ${split} split terms`);
+    return regular + split;
+  },
+  
+  processPage: processPage,
+  
+  processPages: processMultiplePages,
+  
+  processSplitText: processSplitTextElements,
+  
+  startObserving: startObservingDynamicContent,
+  stopObserving: stopObservingDynamicContent,
+  
+  reinitialize: () => {
+    window.MedicalTTS.clearAll();
+    initializeTTS();
+  },
+  
+  // Clear all TTS buttons and reset
+  clearAll: () => {
+    // Remove all TTS buttons
+    document.querySelectorAll(".tts-button").forEach((button) => {
+      button.remove();
+    });
+    
+    processedElements.clear();
+    processedGroups.clear();
+    console.log("Cleared all TTS buttons");
+  },
+  
+  // Add phrases dynamically
+  addPhrases: (newPhrases) => {
+    phrases.push(...newPhrases);
+    console.log("Added phrases:", newPhrases);
+  },
+  
+  // Get current phrases
+  getPhrases: () => phrases.slice(),
+  
+  // Manual test function
+  test: () => {
+    console.log("Available phrases:", phrases);
+    console.log("Bold elements found:", document.querySelectorAll("b, strong").length);
+    console.log("Processed elements:", processedElements.size);
+  }
+};
+
+// Initialize when DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeTTS);
+} else {
+  initializeTTS();
+}
+   </script>
   </body>
 </html>
